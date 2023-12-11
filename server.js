@@ -45,7 +45,9 @@ app.all('*', async (req, res) => {
             }
 
             let fr = await fetch(url, fp);
-            res.status(fr.status).set(fr.headers).send(await fr.text());
+            res.status(fr.status);
+            res.set('Content-Type', fr.headers.get('Content-Type'));
+            res.send(await fr.buffer());
         }
     } catch (err) {
         res.json({
