@@ -1,87 +1,65 @@
 const express = require('express');
-const app = express();
-const http = require('http');
 const fetch = require('node-fetch');
+const app = express();
 
-app.use(express.json())
-app.use(express.text())
-app.use(express.urlencoded({ extended: true }))
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", req.header('Access-Control-Allow-Headers') || "Accept, Authorization, Cache-Control, Content-Type, DNT, If-Modified-Since, Keep-Alive, Origin, User-Agent, X-Requested-With, Token, x-access-token");
+    next();
+});
 
-app.use(async (req, res) => {
+app.all('*', async (req, res) => {
+    try {
+        let url = decodeURIComponent(req.path.substr(1));
 
-  let outBody, outStatus = 200, outStatusText = 'OK', outCt = null;
-  
-  try {
-    let url = req.url;
-    url = decodeURIComponent(url.substr(url.indexOf('/') + 1));
+        if (req.method == "OPTIONS" || url.length < 3 || url.indexOf('.') == -1 || url == "favicon.ico" || url == "robots.txt") {
+            res.json({
+                code: 0,
+                usage: 'Host/{URL}',
+                source: 'https://github.com/netnr/workers'
+            });
+        } else {
+            url = fixUrl(url);
 
-    if (req.method == "OPTIONS" || url.length < 3 || url.indexOf('.') == -1 || url == "favicon.ico" || url == "robots.txt") {
-      
-      outBody = JSON.stringify({
-          code: 0,
-          usage: 'Host/{URL}',
-          source: 'https://github.com/netnr/workers'
-      });
-      outCt = "application/json";
+            let fp = {
+                method: req.method,
+                headers: req.headers
+            }
+
+            if (["POST", "PUT", "PATCH", "DELETE"].indexOf(req.method) >= 0) {
+                const ct = (req.header('content-type') || "").toLowerCase();
+                if (ct.includes('application/json')) {
+                    fp.body = JSON.stringify(req.body);
+                } else if (ct.includes('application/text') || ct.includes('text/html')) {
+                    fp.body = req.text();
+                } else if (ct.includes('form')) {
+                    fp.body = req.formData();
+                } else {
+                    fp.body = req.blob();
+                }
+            }
+
+            let fr = await fetch(url, fp);
+            res.status(fr.status).set(fr.headers).send(await fr.text());
+        }
+    } catch (err) {
+        res.json({
+            code: -1,
+            msg: JSON.stringify(err.stack) || err
+        });
     }
-    else if (blocker.check(url)) {
-      outBody = JSON.stringify({
-          code: 415,
-          msg: 'The keyword: ' + blocker.keys.join(' , ') + ' was blocklisted by the operator of this proxy.'
-      });
-      outCt = "application/json";
-    }
-    else {
-      url = fixUrl(url);
-
-      let fp = {
-          method: req.method,
-          headers: req.headers
-      }
-
-      if (["POST", "PUT", "PATCH", "DELETE"].indexOf(request.method) >= 0) {
-        fp.body = req.body
-      }
-
-      let fr = (await fetch(url, fp));
-      outCt = fr.headers.get('content-type');
-      outStatus = fr.status;
-      outStatusText = fr.statusText;
-      outBody = fr.body;
-
-    }
-  } catch (err) {
-    outBody = JSON.stringify({
-      code: -1,
-      msg: JSON.stringify(err.stack) || err
-    });
-  }
-  
-  if (outCt) {
-    res.setHeader('content-type', outCt);
-  };
-  
-  res.status(outStatus).send(outBody); 
-
 });
 
 function fixUrl(url) {
-  if (url.startsWith("://")) {
-      return `https${url}`;
-  } else if (url.startsWith(':')) {
-    return url.replace(':', 'https://');
-  } else {
-    return `https://${url}`;
-  }
-};
+    if (url.includes("://")) {
+        return url;
+    } else if (url.includes(':/')) {
+        return url.replace(':/', '://');
+    } else {
+        return "https://" + url;
+    }
+}
 
-const blocker = {
-  keys: [".ts", ".acc", ".m4s", "photocall.tv", "googlevideo.com", "liveradio.ie"],
-  check: function (url) {
-      url = url.toLowerCase();
-      let len = blocker.keys.filter(x => url.includes(x)).length;
-      return len != 0;
-  }
-};
-
-app.listen(process.env.PORT || 3000)
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Server is running on port ${port}`));
