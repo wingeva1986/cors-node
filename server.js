@@ -40,7 +40,7 @@ app.all('*', async (req, res) => {
                 }
             }
 
-            let fr = await fetch(url, fp);
+            let fr = await fetch(url, fp, { agent: new https.Agent({ rejectUnauthorized: false }) });
             res.status(fr.status).set(fr.headers).send(await fr.text());
         }
     } catch (err) {
