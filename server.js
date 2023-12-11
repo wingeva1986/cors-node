@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 
 app.use(express.json())
 app.use(express.text())
-app.use(express.form())
+app.use(express.urlencoded({ extended: true }))
 
 app.use(async (req, res) => {
 
