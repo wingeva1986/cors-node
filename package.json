@@ -1,7 +1,7 @@
 {
-  "name": "proxy-server",
+  "name": "cfcors",
   "version": "1.0.0",
-  "description": "A proxy server",
+  "description": "cors node server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
