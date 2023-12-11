@@ -1,6 +1,5 @@
 const express = require('express');
 const fetch = require('node-fetch');
-const https = require('https');
 const app = express();
 
 app.use((req, res, next) => {
@@ -23,10 +22,14 @@ app.all('*', async (req, res) => {
         } else {
             url = fixUrl(url);
 
+
             let fp = {
                 method: req.method,
-                headers: req.headers
+                headers: {...req.headers}
             }
+
+            delete fp.headers['host'];
+            delete fp.headers['content-length'];
 
             if (["POST", "PUT", "PATCH", "DELETE"].indexOf(req.method) >= 0) {
                 const ct = (req.header('content-type') || "").toLowerCase();
@@ -41,7 +44,7 @@ app.all('*', async (req, res) => {
                 }
             }
 
-            let fr = await fetch(url, fp, { agent: new https.Agent({ rejectUnauthorized: false }) });
+            let fr = await fetch(url, fp);
             res.status(fr.status).set(fr.headers).send(await fr.text());
         }
     } catch (err) {
